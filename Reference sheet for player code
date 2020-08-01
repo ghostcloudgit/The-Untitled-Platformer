@@ -1,0 +1,166 @@
+#31 July reference 
+extends KinematicBody2D
+
+const SPEED = 80
+const GRAVITY = 8
+const JUMP_POWER = -250
+const FLOOR = Vector2(0,-1)
+const FIREBALL = preload("res://Fireball.tscn")
+const STICK = preload("res://Stick.tscn")
+
+var velocity = Vector2()
+
+var on_ground = false
+var is_attacking = false
+var is_dead = false
+var amulet = false
+
+
+func _physics_process(_delta):
+	print($Position2D.position.x)
+	if is_dead == false:
+		
+	#Run
+		if Input.is_action_pressed("ui_right") && (is_attacking == false):
+			velocity.x = SPEED
+			$Position2D.position.x = 10
+			$AnimatedSprite.flip_h = false
+			if is_attacking == false:
+				if on_ground == true:
+					if amulet == false:
+						$AnimatedSprite.play("run")
+					else:
+						$AnimatedSprite.play("run_fire")
+#					$AnimatedSprite.flip_h = false
+#					if sign($Position2D.position.x) == -1:
+#							$Position2D.position.x *= -1
+				else:
+					if velocity.y < 0:
+						if amulet == false:
+							$AnimatedSprite.play("jump")
+						else:
+							$AnimatedSprite.play("jump_fire")
+					else:
+						if amulet == false:
+							$AnimatedSprite.play("fall")
+						else:
+							$AnimatedSprite.play("fall_fire")
+					$AnimatedSprite.flip_h = false
+#					if sign($Position2D.position.x) == -1:
+#							$Position2D.position.x *= -1
+		elif Input.is_action_pressed("ui_left") && (is_attacking == false):
+			$Position2D.position.x = -10
+			velocity.x = -SPEED
+			$AnimatedSprite.flip_h = true
+			if is_attacking == false:
+				if on_ground == true:
+					if amulet == false:
+						$AnimatedSprite.play("run")
+					else:
+						$AnimatedSprite.play("run_fire")
+#					$AnimatedSprite.flip_h = true
+#					if sign($Position2D.position.x) == 1:
+#							$Position2D.position.x *= 1
+				else:
+					if velocity.y < 0:
+						if amulet == false:
+							$AnimatedSprite.play("jump")
+						else:
+							$AnimatedSprite.play("jump_fire")
+					else:
+						if amulet == false:
+							$AnimatedSprite.play("fall")
+						else:
+							$AnimatedSprite.play("fall_fire")
+#					$AnimatedSprite.flip_h = true
+#					if sign($Position2D.position.x) == 1:
+#							$Position2D.position.x *= 1
+		else:
+			velocity.x = 0
+			if on_ground == true && is_attacking == false:
+				if amulet == false:
+					$AnimatedSprite.play("idle")
+				else:
+					$AnimatedSprite.play("idle_fire")
+
+	#Jump
+		if Input.is_action_pressed("ui_up") && is_attacking == false:
+			if on_ground == true:
+				velocity.y = JUMP_POWER
+				on_ground = false
+				
+	#Fireball
+		if Input.is_action_just_pressed("ui_focus_next") && is_attacking == false:
+			if is_on_floor():
+				velocity.x = 0
+			is_attacking = true
+			if amulet == true:
+				$AnimatedSprite.play("fireball_attack")
+				var fireball = FIREBALL.instance()
+				if sign($Position2D.position.x) == 1:
+					fireball.set_fireball_direction(1)
+				else:
+					fireball.set_fireball_direction(-1)
+				get_parent().add_child(fireball)
+				fireball.position = $Position2D.global_position
+			else:
+				$AnimatedSprite.play("stick_attack")
+				var stick =  STICK.instance()
+				get_parent().add_child(stick)
+				if sign($Position2D.position.x) == 1:
+					stick.position.x = 10
+				else:
+					stick.position.x = -10
+				stick.position = $Position2D.global_position
+				
+				
+		velocity.y += GRAVITY
+	
+		if is_on_floor():
+			if on_ground == false:
+				is_attacking = false
+			on_ground = true
+	#Fall
+		else:
+			if is_attacking == false:
+				on_ground = false
+				if velocity.y < 0:
+					if amulet == false:
+						$AnimatedSprite.play("jump")
+					else:
+						$AnimatedSprite.play("jump_fire")
+				else:
+					if amulet == false:
+						$AnimatedSprite.play("fall")
+					else:
+						$AnimatedSprite.play("fall_fire")
+						
+		if Input.is_action_just_pressed("ui_end"):
+			get_tree().quit()
+			
+		velocity = move_and_slide(velocity, FLOOR)
+		
+		if get_slide_count() > 0:
+			for i in range(get_slide_count()):
+				if "Enemy" in get_slide_collision(i).collider.name:
+					dead()
+				
+func power_amulet():
+	amulet = true
+	
+func dead():
+	is_dead = true
+	velocity = Vector2(0,0)
+	if amulet == false:
+		$AnimatedSprite.play("dead")
+	else:
+		$AnimatedSprite.play("dead_fire")
+	$CollisionShape2D.disabled = true
+	$Timer.start()
+	
+func _on_AnimatedSprite_animation_finished():
+	is_attacking = false
+
+func _on_Timer_timeout():
+	get_tree().change_scene("res://Title Screen.tscn")
+
